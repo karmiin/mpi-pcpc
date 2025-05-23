@@ -2,34 +2,32 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h> // For isalnum, tolower, isspace
+#include <ctype.h>
 
 #define MAX_FILENAME_LEN 256
 #define MAX_FILES 100
 #define MAX_WORD_LEN 100
-#define INITIAL_HIST_CAPACITY 64 // Initial capacity for histogram items
+#define INITIAL_HIST_CAPACITY 64 
 
-// MPI Message Tags
+
 #define TAG_TASK 0
-#define TAG_PROCESSED_FILE_ACK 0 // Worker to Master: done with file, ready for more
+#define TAG_PROCESSED_FILE_ACK 0
 #define TAG_END_OF_TASKS_SEND_HISTOGRAM 1
 #define TAG_HISTOGRAM_DATA_COUNT 2
 #define TAG_HISTOGRAM_DATA_WORD 3
 #define TAG_HISTOGRAM_DATA_FREQ 4
-// Struct for word and its frequency
+
 typedef struct {
     char word[MAX_WORD_LEN];
     int frequency;
 } WordFreq;
 
-// Struct for histogram
 typedef struct {
     WordFreq* items;
-    int count;      // Number of unique words
-    int capacity;   // Allocated capacity of items array
+    int count;      
+    int capacity; 
 } Histogram;
 
-// Forward declarations for helper functions
 void init_histogram(Histogram* hist);
 void add_word_to_histogram(Histogram* hist, const char* word_str);
 void merge_histograms(Histogram* dest_hist, const Histogram* source_hist);
@@ -37,9 +35,8 @@ void free_histogram_content(Histogram* hist);
 int compare_wordfreq(const void* a, const void* b);
 void sort_histogram_by_word(Histogram* hist);
 void write_histogram_to_csv(const Histogram* hist, const char* csv_filename);
-Histogram* count_words_in_file(const char* filename); // Modified to return Histogram*
+Histogram* count_words_in_file(const char* filename);  
 
-// Initializes a histogram
 void init_histogram(Histogram* hist) {
     hist->items = (WordFreq*)malloc(INITIAL_HIST_CAPACITY * sizeof(WordFreq));
     if (!hist->items) {
@@ -50,7 +47,6 @@ void init_histogram(Histogram* hist) {
     hist->capacity = INITIAL_HIST_CAPACITY;
 }
 
-// Ensures histogram has enough capacity
 void ensure_capacity(Histogram* hist, int min_capacity) {
     if (hist->capacity < min_capacity) {
         int new_capacity = hist->capacity * 2;
@@ -67,7 +63,6 @@ void ensure_capacity(Histogram* hist, int min_capacity) {
     }
 }
 
-// Adds a word to the histogram or increments its frequency
 void add_word_to_histogram(Histogram* hist, const char* word_str) {
     for (int i = 0; i < hist->count; ++i) {
         if (strncmp(hist->items[i].word, word_str, MAX_WORD_LEN) == 0) {
@@ -75,7 +70,6 @@ void add_word_to_histogram(Histogram* hist, const char* word_str) {
             return;
         }
     }
-    // Word not found, add new entry
     ensure_capacity(hist, hist->count + 1);
     strncpy(hist->items[hist->count].word, word_str, MAX_WORD_LEN - 1);
     hist->items[hist->count].word[MAX_WORD_LEN - 1] = '\0'; // Ensure null termination
@@ -83,18 +77,16 @@ void add_word_to_histogram(Histogram* hist, const char* word_str) {
     hist->count++;
 }
 
-// Merges source histogram into destination histogram
 void merge_histograms(Histogram* dest_hist, const Histogram* source_hist) {
     for (int i = 0; i < source_hist->count; ++i) {
         const char* word = source_hist->items[i].word;
         int freq = source_hist->items[i].frequency;
-        for (int k = 0; k < freq; ++k) { // Simple way to add frequency times
+        for (int k = 0; k < freq; ++k) {
             add_word_to_histogram(dest_hist, word);
         }
     }
 }
 
-// Frees the content of a histogram (the items array)
 void free_histogram_content(Histogram* hist) {
     if (hist && hist->items) {
         free(hist->items);
@@ -104,21 +96,18 @@ void free_histogram_content(Histogram* hist) {
     }
 }
 
-// Comparator for qsort (sorts by word alphabetically)
 int compare_wordfreq(const void* a, const void* b) {
     WordFreq* wfA = (WordFreq*)a;
     WordFreq* wfB = (WordFreq*)b;
     return strncmp(wfA->word, wfB->word, MAX_WORD_LEN);
 }
 
-// Sorts the histogram by word
 void sort_histogram_by_word(Histogram* hist) {
     if (hist && hist->count > 0) {
         qsort(hist->items, hist->count, sizeof(WordFreq), compare_wordfreq);
     }
 }
 
-// Writes histogram to a CSV file
 void write_histogram_to_csv(const Histogram* hist, const char* csv_filename) {
     FILE* fp = fopen(csv_filename, "w");
     if (!fp) {
@@ -132,18 +121,17 @@ void write_histogram_to_csv(const Histogram* hist, const char* csv_filename) {
     fclose(fp);
 }
 
-// Funzione per contare le parole in un file e restituire un istogramma
 Histogram* count_words_in_file(const char* filename) {
     FILE* fp = fopen(filename, "r");
     if (!fp) {
-        return NULL; // Return NULL if file can't be opened
+        return NULL;
     }
 
     Histogram* hist = (Histogram*)malloc(sizeof(Histogram));
     if (!hist) {
         perror("Failed to allocate histogram for file");
         fclose(fp);
-        MPI_Abort(MPI_COMM_WORLD, 1); // Critical error
+        MPI_Abort(MPI_COMM_WORLD, 1);
     }
     init_histogram(hist);
 
@@ -152,19 +140,18 @@ Histogram* count_words_in_file(const char* filename) {
     int c;
 
     while ((c = fgetc(fp)) != EOF) {
-        if (isalnum(c)) { // Consider only alphanumeric characters for words
+        if (isalnum(c)) { 
             if (char_idx < MAX_WORD_LEN - 1) {
-                current_word[char_idx++] = tolower(c); // Store lowercase
+                current_word[char_idx++] = tolower(c); 
             }
-        } else { // Separator found
-            if (char_idx > 0) { // If a word was accumulated
+        } else { 
+            if (char_idx > 0) { 
                 current_word[char_idx] = '\0';
                 add_word_to_histogram(hist, current_word);
-                char_idx = 0; // Reset for next word
+                char_idx = 0;
             }
         }
     }
-    // Handle last word if file doesn't end with a separator
     if (char_idx > 0) {
         current_word[char_idx] = '\0';
         add_word_to_histogram(hist, current_word);
@@ -180,7 +167,7 @@ int main(int argc, char *argv[]) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    if (rank == 0) { // MASTER process
+    if (rank == 0) { 
         char file_list[MAX_FILES][MAX_FILENAME_LEN];
         int total_files = 0;
 
@@ -192,7 +179,7 @@ int main(int argc, char *argv[]) {
         while (fgets(file_list[total_files], MAX_FILENAME_LEN, fileListFile) && total_files < MAX_FILES) {
             file_list[total_files][strcspn(file_list[total_files], "\n")] = '\0';
             file_list[total_files][strcspn(file_list[total_files], "\r")] = '\0';
-            if (strlen(file_list[total_files]) > 0) { // Only add non-empty lines
+            if (strlen(file_list[total_files]) > 0) {
                 total_files++;
             }
         }
@@ -201,7 +188,7 @@ int main(int argc, char *argv[]) {
         Histogram global_histogram;
         init_histogram(&global_histogram);
 
-        if (size == 1) { // Single process mode
+        if (size == 1) { 
             printf("Master: Running in single process mode.\n");
             if (total_files == 0) {
                 printf("Master: No files to process.\n");
@@ -216,7 +203,7 @@ int main(int argc, char *argv[]) {
                     printf("Master: Could not process file %s\n", file_list[i]);
                 }
             }
-        } else { // MPI mode (size > 1)
+        } else { 
             int num_workers = size - 1;
             int next_file_idx = 0;
             int workers_finished_and_sent_histograms = 0;
@@ -278,7 +265,7 @@ int main(int argc, char *argv[]) {
 
         free_histogram_content(&global_histogram);
 
-    } else { // WORKER process
+    } else { 
         Histogram local_histogram;
         init_histogram(&local_histogram);
         MPI_Status status;
