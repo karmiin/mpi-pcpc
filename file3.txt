@@ -1,0 +1,2 @@
+Ancora un altro file per testare il conteggio.
+Il conteggio deve essere corretto.
