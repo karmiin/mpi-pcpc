@@ -11,11 +11,11 @@
 
 
 #define TAG_TASK 0
-#define TAG_PROCESSED_FILE_ACK 0
-#define TAG_END_OF_TASKS_SEND_HISTOGRAM 1
-#define TAG_HISTOGRAM_DATA_COUNT 2
-#define TAG_HISTOGRAM_DATA_WORD 3
-#define TAG_HISTOGRAM_DATA_FREQ 4
+#define TAG_PROCESSED_FILE_ACK 1
+#define TAG_END_OF_TASKS_SEND_HISTOGRAM 2
+#define TAG_HISTOGRAM_DATA_COUNT 3
+#define TAG_HISTOGRAM_DATA_WORD 4
+#define TAG_HISTOGRAM_DATA_FREQ 5
 
 typedef struct {
     char word[MAX_WORD_LEN];
@@ -80,9 +80,25 @@ void add_word_to_histogram(Histogram* hist, const char* word_str) {
 void merge_histograms(Histogram* dest_hist, const Histogram* source_hist) {
     for (int i = 0; i < source_hist->count; ++i) {
         const char* word = source_hist->items[i].word;
-        int freq = source_hist->items[i].frequency;
-        for (int k = 0; k < freq; ++k) {
-            add_word_to_histogram(dest_hist, word);
+        int freq_to_add = source_hist->items[i].frequency;
+        
+        // Cerca se la parola esiste già nell'istogramma di destinazione
+        int found = 0;
+        for (int j = 0; j < dest_hist->count; ++j) {
+            if (strncmp(dest_hist->items[j].word, word, MAX_WORD_LEN) == 0) {
+                dest_hist->items[j].frequency += freq_to_add;  // Aggiungi direttamente la frequenza
+                found = 1;
+                break;
+            }
+        }
+        
+        // Se la parola non è stata trovata, aggiungila come nuova entry
+        if (!found) {
+            ensure_capacity(dest_hist, dest_hist->count + 1);
+            strncpy(dest_hist->items[dest_hist->count].word, word, MAX_WORD_LEN - 1);
+            dest_hist->items[dest_hist->count].word[MAX_WORD_LEN - 1] = '\0';
+            dest_hist->items[dest_hist->count].frequency = freq_to_add;
+            dest_hist->count++;
         }
     }
 }
