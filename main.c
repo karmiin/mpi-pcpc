@@ -74,7 +74,7 @@ void add_word_to_histogram(Histogram* hist, const char* word_str) {
     }
     ensure_capacity(hist, hist->count + 1);
     strncpy(hist->items[hist->count].word, word_str, MAX_WORD_LEN - 1);
-    hist->items[hist->count].word[MAX_WORD_LEN - 1] = '\0'; // Ensure null termination
+    hist->items[hist->count].word[MAX_WORD_LEN - 1] = '\0';
     hist->items[hist->count].frequency = 1;
     hist->count++;
 }
@@ -185,14 +185,13 @@ int main(int argc, char *argv[]) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    // Timing variables
+
     double start_time, end_time, total_time;
     start_time = MPI_Wtime();
 
     if (rank == 0) {
-        printf("=== MPI Word Count Scalability Test ===\n");
+        printf("MPI Word Count Scalability Test\n");
         printf("Number of processes: %d\n", size);
-        printf("Starting computation...\n\n");
         char file_list[MAX_FILES][MAX_FILENAME_LEN];
         int total_files = 0;
 
@@ -286,27 +285,14 @@ int main(int argc, char *argv[]) {
         write_histogram_to_csv(&global_histogram, "word_frequencies.csv");
         printf("Master: Output written to word_frequencies.csv\n");
 
-        // Calculate and display timing results
+
         end_time = MPI_Wtime();
         total_time = end_time - start_time;
         
-        printf("\n=== SCALABILITY RESULTS ===\n");
+        printf("\nSCALABILITY RESULTS\n");
         printf("Processes used: %d\n", size);
         printf("Files processed: %d\n", total_files);
         printf("Total execution time: %.4f seconds\n", total_time);
-        printf("Unique words found: %d\n", global_histogram.count);
-        printf("Performance: %.2f files/second\n", total_files / total_time);
-        printf("Throughput: %.2f words/second\n", global_histogram.count / total_time);
-        
-        // Write timing results to file for analysis
-        FILE* timing_file = fopen("scalability_results.txt", "a");
-        if (timing_file) {
-            fprintf(timing_file, "%d,%d,%.4f,%.2f,%.2f\n", 
-                   size, total_files, total_time, 
-                   total_files / total_time, 
-                   global_histogram.count / total_time);
-            fclose(timing_file);
-        }
 
         free_histogram_content(&global_histogram);
 
